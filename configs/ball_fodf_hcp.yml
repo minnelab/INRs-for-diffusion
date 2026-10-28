@@ -13,20 +13,20 @@ ball_stick_n_sticks: 1
 ball_stick_spot_K: 64
 ball_stick_use_fodf: true
 ball_stick_use_spot: false
-bval: /home/maia-user/HCP_25/subject/Diffusion/bvals
+bval: ${BINR_HCP_ROOT}/subject/Diffusion/bvals
 bval_encoding: linear
 bval_train:
 - 1000
 - 3000
 bval_val: all
-bvec: /home/maia-user/HCP_25/subject/Diffusion/bvecs
-checkpoint_dirpath: /home/maia-user/vMRE/binr/OUTPUTS/hcp_holdout_benchmark/hcpholdout_subject_20260608_105257/checkpoints/subject
+bvec: ${BINR_HCP_ROOT}/subject/Diffusion/bvecs
+checkpoint_dirpath: OUTPUTS/checkpoints/subject
 checkpoint_every_n_train_steps: 1000000000000
 checkpoint_filename: last.ckpt
 checkpoint_path: null
 checkpoint_save_top_k: 0
 cos_eta_min_ratio: 0.001
-data: /home/maia-user/HCP_25/subject/Diffusion/data.nii.gz
+data: ${BINR_HCP_ROOT}/subject/Diffusion/data.nii.gz
 disable_checkpointing: true
 dti_eval_batch_size: 50000
 epochs: 6
@@ -55,7 +55,7 @@ incode_residual_skip: false
 log_coords_encoded: false
 log_coords_raw: false
 lr: 2.5e-05
-mask: /home/maia-user/HCP_25/subject/Diffusion/nodif_brain_mask.nii.gz
+mask: ${BINR_HCP_ROOT}/subject/Diffusion/nodif_brain_mask.nii.gz
 model_output_type: ball_stick
 monoexp_D_init: 0.001
 monoexp_S0_init: 0.5

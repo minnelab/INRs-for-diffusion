@@ -423,7 +423,8 @@ classes and DROP 36+ (only ~5 subjects -> untrainable/untestable).
 
 hcp_REPO = Path(__file__).resolve().parent
 
-PREP_DIR = Path("/home/maia-user/vMRE/HCP_preprocessed")
+PREP_DIR = Path(os.environ.get("BINR_HCP_PREPROCESSED",
+                               "/data/HCP_preprocessed"))
 
 DATASET_CSV = PREP_DIR / "dataset.csv"
 
@@ -873,7 +874,8 @@ subject; pooling for any K<=K_max is a prefix-pool on the cache -> the sweep nee
 build per subject. Mirrors the DecodePhysics fit/predict interface (weight_bench_hcp).
 """
 
-feat_REPO = "/home/maia-user/vMRE/binr/.claude/worktrees/weight-classification"
+feat_REPO = os.environ.get("BINR_CLASSIFICATION_ROOT",
+                           str(Path(__file__).resolve().parent))
 
 if feat_REPO not in sys.path:
     sys.path.insert(0, feat_REPO)

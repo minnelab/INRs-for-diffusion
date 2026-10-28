@@ -91,8 +91,16 @@ None of the datasets are redistributable here.
 | ParkMR | in-house, 29 subjects | reconstruction, shell holdout |
 | PPMI | [ppmi-info.org](https://www.ppmi-info.org) (registration required) | Parkinson's classification |
 
-HCP is expected as `<root>/<subject>/Diffusion/{data.nii.gz,bvals,bvecs,nodif_brain_mask.nii.gz}`,
-with the root in `BINR_HCP_ROOT` (`BINR_PARKMR_ROOT` for ParkMR).
+HCP is expected as `<root>/<subject>/Diffusion/{data.nii.gz,bvals,bvecs,nodif_brain_mask.nii.gz}`.
+Paths are read from the environment, never hardcoded:
+
+| variable | what it points at |
+|---|---|
+| `BINR_HCP_ROOT` | the HCP cohort root |
+| `BINR_PARKMR_ROOT` | the ParkMR cohort root |
+| `BINR_PPMI_LABELS` | PPMI label CSV (IDA manifest, or LONI `Participant_Status.csv`) |
+| `BINR_CLASSIFICATION_ROOT` | where `OUTPUTS/classification/` caches and trained INRs live |
+| `BINR_HCP_PREPROCESSED` | preprocessed HCP volumes, for the classification readouts |
 
 Ground-truth fODFs come from MRtrix `dwi2response dhollander` + `dwi2fod msmt_csd`; MRtrix is
 not a Python dependency and is only needed to regenerate them.

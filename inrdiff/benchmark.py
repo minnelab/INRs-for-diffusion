@@ -66,13 +66,13 @@ class TaskSpec:
 
 DATASETS = {
     "hcp": DatasetSpec(
-        name="hcp", root_env="BINR_HCP_ROOT", default_root="/home/maia-user/HCP_25",
+        name="hcp", root_env="BINR_HCP_ROOT", default_root="/data/HCP",
         layout="{root}/{subject}/Diffusion", default_subject="107422",
         shells=(1000, 2000, 3000), has_fodf_gt=True, eval_batch_size=50_000,
     ),
     "parkmr": DatasetSpec(
         name="parkmr", root_env="BINR_PARKMR_ROOT",
-        default_root="/home/maia-user/vMRE/MUDI_synb0",
+        default_root="/data/ParkMR",
         layout="{root}/{subject}", default_subject="PD20230223Control1",
         shells=(100, 700, 1400, 2000), has_fodf_gt=False,
     ),
@@ -598,7 +598,7 @@ def _dump_inr_fodf_nifti(model, pool: AcquisitionPool, cfg: dict, run_dir: Path)
     convert descoteaux07 → tournier07 (MRtrix), pad to 45 (L=8) bands, and
     save as (X, Y, Z, 45) NIfTI. Returns path or None if not in fODF mode.
 
-    The output matches the layout of /home/maia-user/HCP_25/107422/Diffusion/
+    The output matches the layout of <BINR_HCP_ROOT>/<subject>/Diffusion/
     gt_fod/wm_fod.nii.gz (MSMT-CSD GT) so evaluate_fod_acc_afd.py can ingest.
     """
     if not (cfg.get("model_output_type") == "ball_stick"
@@ -708,11 +708,7 @@ def _evaluate_acc_afd(pred_fod_path: Path, subject: str, l_max: int,
     if pred_fod_path is None:
         return None
     try:
-        import importlib.util
-        spec = importlib.util.spec_from_file_location(
-            "fod_acc_afd", "/home/maia-user/MSMT-CSD_INR/evaluate_fod_acc_afd.py")
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
+        from inrdiff import fod_acc_afd as mod
 
         import nibabel as nib
         diff, _, _, _, brain_p = mod.dataset_paths("hcp", subject)

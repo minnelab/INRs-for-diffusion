@@ -27,7 +27,7 @@ import nibabel as nib
 import numpy as np
 import os
 
-HCP_ROOT = os.environ.get("BINR_HCP_ROOT", "/home/maia-user/HCP_25")
+HCP_ROOT = os.environ.get("BINR_HCP_ROOT", os.environ.get("BINR_HCP_ROOT", "/data/HCP"))
 B0_THRESHOLD = 10.0
 ORDERS = {0: "nearest", 1: "trilinear", 3: "cubic B-spline", 5: "quintic spline"}
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -35,17 +35,17 @@ SRC_DIR = REPO_ROOT / "src"
 DATASET_CFG = {
     "hcp": dict(
         data_paths=lambda s: {
-            "data": f"/home/maia-user/HCP_25/{s}/Diffusion/data.nii.gz",
-            "mask": f"/home/maia-user/HCP_25/{s}/Diffusion/nodif_brain_mask.nii.gz",
-            "bvec": f"/home/maia-user/HCP_25/{s}/Diffusion/bvecs",
-            "bval": f"/home/maia-user/HCP_25/{s}/Diffusion/bvals"},
+            "data": fos.environ.get("BINR_HCP_ROOT", "/data/HCP") + "/{s}/Diffusion/data.nii.gz",
+            "mask": fos.environ.get("BINR_HCP_ROOT", "/data/HCP") + "/{s}/Diffusion/nodif_brain_mask.nii.gz",
+            "bvec": fos.environ.get("BINR_HCP_ROOT", "/data/HCP") + "/{s}/Diffusion/bvecs",
+            "bval": fos.environ.get("BINR_HCP_ROOT", "/data/HCP") + "/{s}/Diffusion/bvals"},
         train_shells=(1000, 3000), heldout_shells=(2000,), b0_threshold=50, bval_tol=100),
     "parkmr": dict(
         data_paths=lambda s: {
-            "data": f"/home/maia-user/vMRE/MUDI_synb0/{s}/linear_corrected.nii.gz",
-            "mask": f"/home/maia-user/vMRE/MUDI_synb0/{s}/linear_corrected_ss_mask.nii.gz",
-            "bvec": f"/home/maia-user/vMRE/MUDI_synb0/{s}/linear_corrected.bvec",
-            "bval": f"/home/maia-user/vMRE/MUDI_synb0/{s}/linear_corrected.bval"},
+            "data": fos.environ.get("BINR_PARKMR_ROOT", "/data/ParkMR") + "/{s}/linear_corrected.nii.gz",
+            "mask": fos.environ.get("BINR_PARKMR_ROOT", "/data/ParkMR") + "/{s}/linear_corrected_ss_mask.nii.gz",
+            "bvec": fos.environ.get("BINR_PARKMR_ROOT", "/data/ParkMR") + "/{s}/linear_corrected.bvec",
+            "bval": fos.environ.get("BINR_PARKMR_ROOT", "/data/ParkMR") + "/{s}/linear_corrected.bval"},
         train_shells=(1400, 2000), heldout_shells=(100, 700), b0_threshold=10, bval_tol=50),
 }
 UTC = timezone.utc
@@ -223,9 +223,8 @@ def main_dti_extrap():
 
 # --- from frame_search.py -------------------------------------------
 def _eval_mod():
-    spec = importlib.util.spec_from_file_location(
-        "fod_acc_afd", "/home/maia-user/MSMT-CSD_INR/evaluate_fod_acc_afd.py")
-    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m); return m
+    from inrdiff import fod_acc_afd
+    return fod_acc_afd
 
 
 # --- from frame_search.py -------------------------------------------
