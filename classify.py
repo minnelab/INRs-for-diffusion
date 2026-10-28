@@ -215,7 +215,7 @@ def list_sessions(subjects: list[str] | None = None) -> list[Series]:
     subjects = subjects or ppmi_list_subjects()
     return [s for sub in subjects for s in sessions(sub).values()]
 
-MASK_DIR = Path(__file__).resolve().parents[1] / "OUTPUTS" / "classification" / "ppmi_masks"
+MASK_DIR = Path(__file__).resolve().parent / "OUTPUTS" / "classification" / "ppmi_masks"
 
 MRTRIX_ENV = "nipype"
 
@@ -249,7 +249,8 @@ COHORT_NAME = {1: "PD", 2: "HC", 3: "SWEDD", 4: "Prodromal"}
 _GROUP_TO_CODE = {"PD": 1, "CONTROL": 2, "HC": 2, "HEALTHY CONTROL": 2,
                   "SWEDD": 3, "PRODROMAL": 4, "GENPD": 1, "GENUNAFF": 2}
 
-ppmi_REPO = Path(__file__).resolve().parents[1]
+ppmi_REPO = Path(os.environ.get("BINR_CLASSIFICATION_ROOT",
+                                Path(__file__).resolve().parent))
 
 def _label_csv() -> Path:
     env = os.environ.get("BINR_PPMI_LABELS")
@@ -420,7 +421,7 @@ Age is the HCP 5-yr bin (22-25 / 26-30 / 31-35 / 36+). We use the 3 well-populat
 classes and DROP 36+ (only ~5 subjects -> untrainable/untestable).
 """
 
-hcp_REPO = Path(__file__).resolve().parents[1]
+hcp_REPO = Path(__file__).resolve().parent
 
 PREP_DIR = Path("/home/maia-user/vMRE/HCP_preprocessed")
 
@@ -579,7 +580,7 @@ Usage:
         --epochs 20 --hidden-size 256 [--limit 5]
 """
 
-TRAIN_REPO_ROOT = Path(__file__).resolve().parents[1]
+TRAIN_REPO_ROOT = Path(__file__).resolve().parent
 
 SRC_DIR = TRAIN_REPO_ROOT / "src"
 
@@ -721,7 +722,7 @@ function of the weights but biologically meaningful (no free read-out of raw wei
 Cached per subject to OUTPUTS/classification/hcp_decode/<subject>_phys.npz.
 """
 
-hcpdec_REPO = Path(__file__).resolve().parents[1]
+hcpdec_REPO = Path(__file__).resolve().parent
 
 for p in (str(hcpdec_REPO), str(hcpdec_REPO / "src")):
     if p not in sys.path:
@@ -1266,7 +1267,8 @@ Usage:
 for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
     os.environ.setdefault(_v, "4")
 
-drv_REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+drv_REPO = os.environ.get("BINR_CLASSIFICATION_ROOT",
+                          os.path.dirname(os.path.abspath(__file__)))
 
 sys.path.insert(0, drv_REPO)
 
