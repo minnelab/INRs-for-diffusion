@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+
+# Run artefacts and data — never committed
+OUTPUTS/
+outputs/
+runs/
+checkpoints/
+tb_logs/
+*.ckpt
+*.pt
+*.nii
+*.nii.gz
+*.npz
+*.npy
