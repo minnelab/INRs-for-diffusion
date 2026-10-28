@@ -521,8 +521,13 @@ class INRLightningModule(pl.LightningModule):
                 p_fodf = _bs_decode_fodf(outputs, self.ball_stick_fodf_l_max,
                                          unpin_c00=self.ball_stick_fodf_unpin_c00)
                 fODF_free = p_fodf["fODF_lm"][:, 1:]  # drop l=0
-                l_idx = self._bs_fodf_l_idx_per_coef[1:].to(fODF_free.device)
-                weight_l = (l_idx * (l_idx + 1)).float()
+                # _bs_fodf_l_idx_per_coef holds the POSITION in (0, 2, ..., l_max),
+                # not l itself, so l = 2 * index. Weighting by index*(index+1)
+                # instead of l*(l+1) gives 0/2/6/12 where the Laplace-Beltrami
+                # eigenvalue is 0/6/20/42 -- still monotone in angular order, but
+                # not the operator the penalty is named for.
+                l_actual = 2 * self._bs_fodf_l_idx_per_coef[1:].to(fODF_free.device)
+                weight_l = (l_actual * (l_actual + 1)).float()
                 laplace_penalty = (weight_l * fODF_free.square()).mean()
                 loss = loss + self.ball_stick_fodf_laplace_weight * laplace_penalty
                 self.log(f"{self.name}/fodf_laplace_penalty", laplace_penalty,

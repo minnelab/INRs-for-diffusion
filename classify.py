@@ -421,36 +421,44 @@ Age is the HCP 5-yr bin (22-25 / 26-30 / 31-35 / 36+). We use the 3 well-populat
 classes and DROP 36+ (only ~5 subjects -> untrainable/untestable).
 """
 
-hcp_REPO = Path(__file__).resolve().parent
+hcp_REPO = Path(os.environ.get("BINR_CLASSIFICATION_ROOT",
+                    Path(__file__).resolve().parent))
 
 PREP_DIR = Path(os.environ.get("BINR_HCP_PREPROCESSED",
                                "/data/HCP_preprocessed"))
 
 DATASET_CSV = PREP_DIR / "dataset.csv"
 
-LABEL_CSV = next(iter(sorted(glob.glob(str(hcp_REPO / "HCP_YA_subjects_*.csv")))), None)
+# HCP behavioural table: Subject / Gender / Age. Restricted data, so it is not
+# in the repo -- point BINR_HCP_LABELS at it, or drop it beside the caches.
+LABEL_CSV = os.environ.get("BINR_HCP_LABELS") or next(
+    iter(sorted(glob.glob(str(hcp_REPO / "HCP_YA_subjects_*.csv")))), None)
 
 AGE_CLASSES = ["22-25", "26-30", "31-35"]
 
 AGE_TO_IDX = {a: i for i, a in enumerate(AGE_CLASSES)}
 
+@lru_cache(maxsize=1)
 def _labels_df():
     import pandas as pd
     df = pd.read_csv(LABEL_CSV, usecols=["Subject", "Gender", "Age"])
     df["Subject"] = df["Subject"].astype(str)
     return df
 
+@lru_cache(maxsize=1)
 def _label_maps():
     df = _labels_df()
     age = dict(zip(df["Subject"], df["Age"]))
     sex = dict(zip(df["Subject"], df["Gender"]))
     return age, sex
 
+@lru_cache(maxsize=1)
 def _preprocessed_ids() -> frozenset:
     ids = [os.path.basename(d).replace("subject_", "")
            for d in glob.glob(str(PREP_DIR / "subject_*"))]
     return frozenset(ids)
 
+@lru_cache(maxsize=1)
 def hcp_list_subjects() -> list:
     """Subjects with BOTH preprocessed dwi and a usable (3-class) age label."""
     age, _ = _label_maps()
@@ -485,6 +493,7 @@ def stratified_sample(n: int, task: str = "age", seed: int = 0) -> list:
     rng.shuffle(picked)
     return picked
 
+@lru_cache(maxsize=1)
 def _volume_index():
     """subject_id -> (sorted volume_ids, bvals[N], bvecs[N,3], mask_path)."""
     import pandas as pd
@@ -581,7 +590,8 @@ Usage:
         --epochs 20 --hidden-size 256 [--limit 5]
 """
 
-TRAIN_REPO_ROOT = Path(__file__).resolve().parent
+TRAIN_REPO_ROOT = Path(os.environ.get("BINR_CLASSIFICATION_ROOT",
+                    Path(__file__).resolve().parent))
 
 SRC_DIR = TRAIN_REPO_ROOT / "src"
 
@@ -723,7 +733,8 @@ function of the weights but biologically meaningful (no free read-out of raw wei
 Cached per subject to OUTPUTS/classification/hcp_decode/<subject>_phys.npz.
 """
 
-hcpdec_REPO = Path(__file__).resolve().parent
+hcpdec_REPO = Path(os.environ.get("BINR_CLASSIFICATION_ROOT",
+                    Path(__file__).resolve().parent))
 
 for p in (str(hcpdec_REPO), str(hcpdec_REPO / "src")):
     if p not in sys.path:
@@ -751,6 +762,7 @@ def hcpdec__build_model(subject, hidden_size=256, device="cuda"):
     pl.to(device).eval()
     return pl
 
+@lru_cache(maxsize=512)
 def physics_params(subject, hidden_size=256, device="cuda") -> dict:
     """In-memory + disk cached. NOTE: callers must treat the returned dict as
     read-only (it is shared across calls via lru_cache)."""
@@ -777,6 +789,7 @@ def physics_params(subject, hidden_size=256, device="cuda") -> dict:
     np.savez(cache, **out)
     return out
 
+@lru_cache(maxsize=512)
 def _subject_feat(subject, keys):
     """Cached per-subject quantile feature vector (so the permutation null doesn't
     recompute quantiles over ~750k voxels on every fold)."""
@@ -845,6 +858,7 @@ def recon_dti_md(subject, hidden_size=256, device="cuda") -> np.ndarray:
     np.save(cache, md)
     return md
 
+@lru_cache(maxsize=512)
 def _recon_md_feat(subject):
     return np.quantile(recon_dti_md(subject), QUANTILES)
 
@@ -888,6 +902,7 @@ feat_QUANTS = np.array([.05, .25, .5, .75, .95])
 
 PENULT_LAYER = 6
 
+@lru_cache(maxsize=1)
 def _canonical_coords(k_max=K_MAX, seed=0):
     """Fixed random points in normalized [-1,1]^3, shared across all subjects."""
     rng = np.random.default_rng(seed)
@@ -1042,6 +1057,7 @@ def _positive_score(model, x_row: np.ndarray) -> float:
         return float(np.ravel(model.decision_function(x_row))[0])
     return float(model.predict(x_row)[0])
 
+@dataclass
 class CVResult:
     bal_acc: float
     auc: float
@@ -1227,11 +1243,31 @@ def evaluate_kernel_pca(
     )
 
 def _safe_auc(y: np.ndarray, y_score: np.ndarray) -> float:
-    if len(np.unique(y)) < 2:
+    """ROC AUC, or NaN where it is not defined.
+
+    PPMI is binary; HCP age is three classes, where roc_auc_score needs an
+    explicit multi_class rule and a full probability matrix. One-vs-rest macro
+    AUC is used when a probability matrix is available, NaN otherwise -- the
+    headline metric is balanced accuracy in both cases.
+    """
+    classes = np.unique(y)
+    if len(classes) < 2:
         return float("nan")
-    return float(roc_auc_score(y, y_score))
+    score = np.asarray(y_score)
+    if len(classes) == 2:
+        if score.ndim == 2:
+            score = score[:, -1]
+        return float(roc_auc_score(y, score))
+    if score.ndim == 2 and score.shape[1] == len(classes):
+        return float(roc_auc_score(y, score, multi_class="ovr", average="macro"))
+    return float("nan")
 
 def _sens_spec(y: np.ndarray, y_pred: np.ndarray) -> tuple[float, float]:
+    # Binary-only by construction. On a multi-class target (HCP age has three
+    # classes) "positive" and "negative" are not defined, and the y==1 / y==0
+    # formulas below would silently report a number for two of the classes.
+    if len(np.unique(y)) > 2:
+        return float("nan"), float("nan")
     pos = y == 1
     neg = y == 0
     sens = float((y_pred[pos] == 1).mean()) if pos.any() else float("nan")
@@ -1445,14 +1481,33 @@ def cli() -> int:
 
     if args.train_inrs:
         hcp_train_inrs()
-    subjects = hcp_list_subjects()
-    labels = cohort_map()
-    subjects = [s for s in subjects if str(s) in labels]
-    y = np.asarray([labels[str(s)] for s in subjects])
+    # the cohort is whichever subjects have a trained INR on disk, intersected
+    # with the behavioural table -- not the preprocessed-image directory, which
+    # is only needed when (re)training.
+    trained = sorted(p.stem for p in HCP_INR_DIR.glob("*.pt"))
+    age_map, sex_map = _label_maps()
+    label_of = ((lambda s: age_class(s)) if args.target == "age"
+                else (lambda s: 0 if sex_map[s] == "M" else 1))
+    subjects, y = [], []
+    for s in trained:
+        try:
+            lab = label_of(s)
+        except KeyError:
+            continue
+        subjects.append(s); y.append(lab)
+    if not subjects:
+        raise SystemExit(
+            f"no subjects with both a trained INR in {HCP_INR_DIR} and a "
+            f"{args.target} label in the behavioural table")
+    y = np.asarray(y)
     X = (physics_features(subjects) if args.readout == "decoded"
          else recon_md_features(subjects))
+    X = np.asarray(X)
+    if X.ndim == 1:
+        X = X.reshape(len(subjects), -1)
+    chance = 1.0 / len(set(y.tolist()))
     print(f"HCP {args.target}: {len(subjects)} subjects, {X.shape[1]} features, "
-          f"{len(set(y.tolist()))} classes", flush=True)
+          f"{len(set(y.tolist()))} classes (chance {chance:.3f})", flush=True)
     res = evaluate_features(X, y, n_perm=args.n_perm)
     print(res)
     return 0
